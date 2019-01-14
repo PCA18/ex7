@@ -5,6 +5,7 @@
 #include <time.h>
 #include "utils.h"
 #include <pthread.h>
+#include <mpi.h>
 
 
 double** allocMat(int size){
@@ -74,46 +75,19 @@ struct args {
  
  void *compute(void *input){
 	int z = ((args*)input)->zeile;
-	// double** mat_backup = ((args*)input)->mat_backup;
 	int size = ((args*)input)->size;
-	//((struct args*)input)->G;
-
 	for(int j = 1; j < size-1 ; ++j){
 		for(int k = 0; k < 3; ++k){
 			((args*)input)->mat[z][j] += ((args*)input)->G[k]*(((args*)input)->mat_backup[z][j+k-1] + ((args*)input)->mat_backup[z+k-1][j]);
-			// printf("%i\t%i\t%i\n",z,j,k );
-			// printf("%.2f\n", ((args*)input)->G[k]);
-			// printf("%.2f\t%.2f\n", ((args*)input)->mat[z][j+k-1],((args*)input)->mat[z+k-1][j]);
-			// printf("%.2f\t%.2f\n\n", ((args*)input)->mat_backup[z][j+k-1],((args*)input)->mat_backup[z+k-1][j]);
 		}
 	}
-
-	// int i,j;
- //    for (i = 0; i <  size; i++)
- //    { 
-	// 	for (j = 0; j < size; j++)
-	// 	{ 
-	// 		if (j+1 == size)
-	// 		{
-	// 			printf("%.2f\n", ((args*)input)->mat[i][j]);
-	// 		}
-	// 		else
-	// 		{
-	// 			printf("%.2f    ", ((args*)input)->mat[i][j]);
-	// 		}
-	// 	}
-	// }
-	// printf("\n");
-
 	return(0);
  }
 
 void relax(args& Comp_args)
 {	
-	// copyMatrix(mat, mat_backup, size);
 	int size = Comp_args.size;
 	int numThreads = Comp_args.numThreads;
-	
 	pthread_t* threads = initThreads(numThreads);
 	for (int z = 1; z < size-1; ++z)
 	{	
@@ -125,7 +99,6 @@ void relax(args& Comp_args)
 
 int main(int argc, char* argv[])
 {
-	// printf("argc %d", argc);
 	//terminal parameter
 	int grid_size_N = 1024 + 2; //strtol(argv[1], NULL, 10)+2;	
 	int diameter_m = 128; //strtol(argv[2], NULL, 10);
@@ -149,30 +122,27 @@ int main(int argc, char* argv[])
 	Comp_args.size = grid_size_N;
 	Comp_args.G = G;
 	Comp_args.numThreads = numThreads;
-
-	
-	// for (i = 0; i <  grid_size_N; i++)
- //    { 
-	// 	for (j = 0; j < grid_size_N; j++)
-	// 	{ 
-	// 		if (j+1 == grid_size_N)
-	// 		{
-	// 			printf("%.2f\n", mat_backup[i][j]);
-	// 		}
-	// 		else
-	// 		{
-	// 			printf("%.2f    ", mat_backup[i][j]);
-	// 		}
-	// 	}
-	// }
-	// printf("\n");
-
-
 	time_t now;
 	time_t not_now;
 	time_t cylces = 0;
 	time_t cylces_ave;
-	
+	MPI_Init(NULL, NULL);
+	int world_rank;
+	MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+	int world_size;
+	MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+	char processor_name[MPI_MAX_PROCESSOR_NAME];
+	int name_len;
+	MPI_Get_processor_name(processor_name, &name_len);
+	int batch_size = num_iter/world_size;
+	if (batch_size % 2)
+	{
+		printf("only even batch size allowed!\n");
+		exit(0);
+	}
+	 MPI_Status status;
+ 
+ 
 	for (int itr=0; itr<numIter; ++itr)
 	{
 		rdtsc(now);
@@ -187,28 +157,7 @@ int main(int argc, char* argv[])
 		printf ("aktuell iter num  = %d\n", itr);
 		printf ("iter gesamt  = %d\n", numIter);
 		printf ("threads  = %d\n\n", numThreads);
-		// printf("test\n" );
-
-		// int i,j;
-		// for (i = 0; i <  grid_size_N; i++)
-		// {
-		// 	for (j = 0; j < grid_size_N; j++)
-		// 	{
-		// 		if (j+1 == grid_size_N)
-		// 		{
-		// 			printf("%.2f\n", Comp_args.mat_backup[i][j]);
-		// 		}
-		// 		else
-		// 		{
-		// 			printf("%.2f    ", Comp_args.mat_backup[i][j]);
-		// 		}
-		// 	}
-		// }
-		// printf("\n");
 	}
-
-	// free(mat[0]); free(mat);
-	// free(mat_backup[0]); free(mat_backup);
 	return(0);
 }
 
